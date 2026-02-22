@@ -984,6 +984,16 @@ async function main() {
       }
     }
 
+    // Fallback: if no detection, place a test joint at center
+    if (numActive === 0) {
+      jointData[0] = 0.5;
+      jointData[1] = 0.5;
+      jointData[2] = 0;
+      jointData[3] = 0;
+      activeData[0] = 1.0;
+      numActive = 1;
+    }
+
     device.queue.writeBuffer(jointDataBuffer, 0, jointData);
     device.queue.writeBuffer(jointActiveBuffer, 0, activeData);
 

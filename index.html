@@ -1030,6 +1030,12 @@ async function main() {
     ]);
     device.queue.writeBuffer(paramsBuffer, 0, paramsData);
 
+    // Debug params at frame 60
+    if (frameCount === 60) {
+      console.log('PARAMS:', Array.from(paramsData).map((v,i) => `[${i}]=${v.toFixed(3)}`).join(' '));
+      console.log('ACTIVE DATA (first 33):', Array.from(activeData.slice(0, 33)).map((v,i) => v > 0 ? `${i}:${v}` : '').filter(Boolean).join(', '));
+    }
+
     const renderData = new Float32Array([aspect, particleSizeVal, colorTheme, time]);
     device.queue.writeBuffer(renderUniformBuffer, 0, renderData);
 
@@ -1101,6 +1107,15 @@ async function main() {
           previewCtx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
           previewCtx.fill();
         }
+      }
+    }
+
+    // Debug: log state every 30 frames for first 5 seconds
+    if (frameCount % 30 === 0 && frameCount <= 150) {
+      console.log(`FRAME ${frameCount}: numActive=${numActive}, hasDetection=${hasDetection}, landmarks=${landmarks ? landmarks.length : 'null'}, pingPong=${frameCount % 2}`);
+      if (landmarks) {
+        const v0 = landmarks[0];
+        console.log(`  Joint0: x=${v0.x.toFixed(3)} y=${v0.y.toFixed(3)} vis=${(v0.visibility||0).toFixed(3)}`);
       }
     }
 

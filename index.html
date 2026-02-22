@@ -376,9 +376,24 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   // Respawn dead particles
   if (p.life <= 0.0 && params.numActiveJoints > 0.0) {
-    let ji = u32(p.jointIndex) % 33u;
+    // Pick a random active joint by scanning
+    let r0 = hash(seed + 50u);
+    let targetIdx = u32(r0 * params.numActiveJoints);
+    var ji = 0u;
+    var count = 0u;
+    var found = false;
+    for (var j = 0u; j < 33u; j = j + 1u) {
+      if (jointActive[j] > 0.5) {
+        if (count == targetIdx) {
+          ji = j;
+          found = true;
+          break;
+        }
+        count = count + 1u;
+      }
+    }
 
-    if (jointActive[ji] > 0.5) {
+    if (found) {
       let jpos = joints[ji].xy;
       let jvel = joints[ji].zw;
 
@@ -413,6 +428,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
       p.life = p.maxLife;
       p.size = 0.5 + hash(seed + 500u) * 1.0;
+      p.jointIndex = f32(ji);
     }
   }
 
@@ -440,9 +456,6 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     if (p.life <= 0.0) {
       p.life = 0.0;
-      // Reassign to random joint
-      let newJoint = hash(seed + 700u) * 33.0;
-      p.jointIndex = floor(newJoint);
     }
   }
 

@@ -797,19 +797,20 @@ async function main() {
       });
 
       video = document.createElement('video');
-      video.srcObject = stream;
       video.setAttribute('playsinline', '');
+      video.setAttribute('autoplay', '');
       video.muted = true;
-
-      // Wait for video metadata before reading dimensions
-      await new Promise((resolve) => {
-        video.onloadedmetadata = resolve;
-      });
+      video.srcObject = stream;
       await video.play();
 
+      // Wait until video dimensions are available
+      while (video.videoWidth === 0) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+
       // Set preview canvas dimensions
-      const vw = video.videoWidth || 1280;
-      const vh = video.videoHeight || 720;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
       const aspect = vw / vh;
       previewCanvas.width = 200;
       previewCanvas.height = Math.round(200 / aspect);

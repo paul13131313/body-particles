@@ -921,6 +921,7 @@ async function main() {
 
   function animate(now) {
     requestAnimationFrame(animate);
+    try {
 
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
@@ -1070,6 +1071,11 @@ async function main() {
     }
 
     frameCount++;
+
+    } catch (err) {
+      console.error('ANIMATE ERROR:', err);
+      fpsEl.textContent = 'ERROR: ' + err.message;
+    }
   }
 }
 

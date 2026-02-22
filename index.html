@@ -532,7 +532,7 @@ fn vs_main(
   let lifeRatio = p.life / p.maxLife;
   // Size: born large, fade small
   let sizeScale = 0.3 + lifeRatio * 0.7;
-  let size = rp.baseSize / 900.0 * p.size * sizeScale;
+  let size = rp.baseSize / 300.0 * p.size * sizeScale;
 
   // Map pos (0..1 range) to clip space (-1..1)
   var screenPos = p.pos * 2.0 - 1.0;
@@ -587,7 +587,7 @@ fn fs_main(in: VSOut) -> @location(0) vec4<f32> {
   let color = hsv2rgb(hue, sat, val);
   let alpha = glow * in.lifeRatio * 0.5;
 
-  return vec4<f32>(color * alpha, alpha);
+  return vec4<f32>(color, alpha);
 }
 `;
 
@@ -921,7 +921,6 @@ async function main() {
 
   function animate(now) {
     requestAnimationFrame(animate);
-    try {
 
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
@@ -982,16 +981,6 @@ async function main() {
           numActive++;
         }
       }
-    }
-
-    // Fallback: if no detection, place a test joint at center
-    if (numActive === 0) {
-      jointData[0] = 0.5;
-      jointData[1] = 0.5;
-      jointData[2] = 0;
-      jointData[3] = 0;
-      activeData[0] = 1.0;
-      numActive = 1;
     }
 
     device.queue.writeBuffer(jointDataBuffer, 0, jointData);
@@ -1081,11 +1070,6 @@ async function main() {
     }
 
     frameCount++;
-
-    } catch (err) {
-      console.error('ANIMATE ERROR:', err);
-      fpsEl.textContent = 'ERROR: ' + err.message;
-    }
   }
 }
 

@@ -710,18 +710,11 @@ async function main() {
   const particleBuffers = [0, 1].map(() =>
     device.createBuffer({
       size: particleByteSize,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
   );
   device.queue.writeBuffer(particleBuffers[0], 0, initData);
   device.queue.writeBuffer(particleBuffers[1], 0, initData);
-
-  // Debug readback buffer (first 10 particles)
-  const debugReadSize = 10 * BYTES_PER_PARTICLE;
-  const debugReadBuffer = device.createBuffer({
-    size: debugReadSize,
-    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-  });
 
   // Joint data buffer: 33 joints × vec4(x, y, vx, vy) = 528 bytes
   const jointDataBuffer = device.createBuffer({
@@ -748,29 +741,15 @@ async function main() {
   });
 
   // ---- Pipelines ----
-  const computeModule = device.createShaderModule({ code: computeShader });
-  const renderModule = device.createShaderModule({ code: renderShader });
-
-  // Check shader compilation
-  const [compComp, compRender] = await Promise.all([
-    computeModule.getCompilationInfo(),
-    renderModule.getCompilationInfo(),
-  ]);
-  for (const msg of compComp.messages) {
-    console.error('COMPUTE SHADER:', msg.type, msg.message, 'line:', msg.lineNum);
-  }
-  for (const msg of compRender.messages) {
-    console.error('RENDER SHADER:', msg.type, msg.message, 'line:', msg.lineNum);
-  }
-
   const computePipeline = device.createComputePipeline({
     layout: 'auto',
     compute: {
-      module: computeModule,
+      module: device.createShaderModule({ code: computeShader }),
       entryPoint: 'main',
     },
   });
 
+  const renderModule = device.createShaderModule({ code: renderShader });
   const particlePipeline = device.createRenderPipeline({
     layout: 'auto',
     vertex: {
@@ -1029,12 +1008,6 @@ async function main() {
     ]);
     device.queue.writeBuffer(paramsBuffer, 0, paramsData);
 
-    // Debug params at frame 60
-    if (frameCount === 60) {
-      console.log('PARAMS:', Array.from(paramsData).map((v,i) => `[${i}]=${v.toFixed(3)}`).join(' '));
-      console.log('ACTIVE DATA (first 33):', Array.from(activeData.slice(0, 33)).map((v,i) => v > 0 ? `${i}:${v}` : '').filter(Boolean).join(', '));
-    }
-
     const renderData = new Float32Array([aspect, particleSizeVal, colorTheme, time]);
     device.queue.writeBuffer(renderUniformBuffer, 0, renderData);
 
@@ -1105,37 +1078,6 @@ async function main() {
           previewCtx.fill();
         }
       }
-    }
-
-    // Debug: log state every 30 frames for first 5 seconds
-    if (frameCount % 30 === 0 && frameCount <= 150) {
-      console.log(`FRAME ${frameCount}: numActive=${numActive}, hasDetection=${hasDetection}, landmarks=${landmarks ? landmarks.length : 'null'}, pingPong=${frameCount % 2}`);
-      if (landmarks) {
-        const v0 = landmarks[0];
-        console.log(`  Joint0: x=${v0.x.toFixed(3)} y=${v0.y.toFixed(3)} vis=${(v0.visibility||0).toFixed(3)}`);
-      }
-    }
-
-    // Debug: readback particle data at frame 60
-    if (frameCount === 60) {
-      const readEncoder = device.createCommandEncoder();
-      const srcBuf = particleBuffers[1 - (frameCount % 2)];
-      readEncoder.copyBufferToBuffer(srcBuf, 0, debugReadBuffer, 0, debugReadSize);
-      device.queue.submit([readEncoder.finish()]);
-      debugReadBuffer.mapAsync(GPUMapMode.READ).then(() => {
-        const data = new Float32Array(debugReadBuffer.getMappedRange().slice(0));
-        debugReadBuffer.unmap();
-        for (let i = 0; i < 10; i++) {
-          const o = i * 8;
-          console.log(`P${i}: pos(${data[o].toFixed(3)},${data[o+1].toFixed(3)}) vel(${data[o+2].toFixed(4)},${data[o+3].toFixed(4)}) life=${data[o+4].toFixed(3)} maxLife=${data[o+5].toFixed(3)} size=${data[o+6].toFixed(3)} joint=${data[o+7]}`);
-        }
-        // Count alive particles
-        let alive = 0;
-        for (let i = 0; i < 10; i++) {
-          if (data[i * 8 + 4] > 0) alive++;
-        }
-        console.log(`DEBUG: ${alive}/10 particles alive`);
-      });
     }
 
     frameCount++;
